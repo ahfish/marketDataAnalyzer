@@ -6,6 +6,8 @@ import urllib.request
 import json
 import logging
 import sys
+import datetime
+
 
 
 logFormat = '%(asctime)s - %(levelname)s - %(threadName)s - [%(message)s]'
@@ -29,9 +31,19 @@ def debugLog(data):
     logging.info(data)
 
 
+def enrich(data):
+    date_time_str = data['time']
+    data['timeObj'] = datetime.datetime.fromisoformat(date_time_str)
+
+
+def analyse(way, point, targetPoint, range, data):
+
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     rawJson = marketDataOf('CADUSD', 1, '2019-08-01', '2020-08-07')
+    [enrich(x) for x in rawJson]
     [debugLog(x) for x in rawJson]
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
