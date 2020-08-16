@@ -7,8 +7,10 @@ import json
 import logging
 import sys
 import datetime
-
-
+import pandas as pd
+from operator import itemgetter
+from operator import attrgetter
+from itertools import groupby
 
 logFormat = '%(asctime)s - %(levelname)s - %(threadName)s - [%(message)s]'
 logFormatter = logging.Formatter(logFormat)
@@ -33,17 +35,33 @@ def debugLog(data):
 
 def enrich(data):
     date_time_str = data['time']
-    data['timeObj'] = datetime.datetime.fromisoformat(date_time_str)
+    data['timeObj'] = pd.Timestamp(datetime.datetime.fromisoformat(date_time_str))
+    data['timeGroup'] = data['timeObj'].round('1d')
 
 
-def analyse(way, point, targetPoint, range, data):
+def processData(data, dataAfter):
+    fail = 0
+    match = 0
+    sucess = 0
+    firstMatch = next(x for x in dataAfter if data['high'] - 20 * 0.0001 >= x['low'])
+    debugLog(f"first Data - {data}")
+    debugLog(f"First Mathc - {firstMatch}")
 
 
-
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     rawJson = marketDataOf('CADUSD', 1, '2019-08-01', '2020-08-07')
     [enrich(x) for x in rawJson]
-    [debugLog(x) for x in rawJson]
+    groupedData = {k: [data for data in g] for k, g in groupby(sorted(rawJson, key=itemgetter('timeGroup')), key=itemgetter('timeGroup'))}
+    #debugLog(groupedData.get(list(groupedData.keys())[0]))
+    firstList = groupedData.get(list(groupedData.keys())[0])
+    firstData = firstList[0]
+    firstDate = firstData['timeObj']
+    compareList = [x for x in firstList if x['timeObj'] > firstDate]
+    processData(firstData, compareList)
+
+
+
+
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
+
