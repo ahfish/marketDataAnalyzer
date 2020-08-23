@@ -1,17 +1,13 @@
-# This is a sample Python script.
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-import urllib.request
+import datetime
 import json
 import logging
 import sys
-import datetime
-import pandas as pd
-from operator import itemgetter
-from operator import attrgetter
-from itertools import groupby
+import urllib.request
 from enum import Enum, auto
+from itertools import groupby
+from operator import itemgetter
+
+import pandas as pd
 
 logFormat = '%(asctime)s - %(levelname)s - %(threadName)s - [%(message)s]'
 logFormatter = logging.Formatter(logFormat)
@@ -46,20 +42,20 @@ def enrich(data):
 
 
 def process_data(data) -> MATCH_RESULT:
-    upPt = 30
-    downPt = 10
+    up_pt = 30
+    down_pt = 10
     if data:
-        startPt = data[0]
-        firstDate = startPt['timeObj']
-        dataAfter = [x for x in data if x['timeObj'] > firstDate]
-        firstMatch = next((x for x in dataAfter if startPt['low'] + upPt * 0.0001 <= x['high']), None)
+        start_pt = data[0]
+        first_date = start_pt['timeObj']
+        data_after = [x for x in data if x['timeObj'] > first_date]
+        first_match = next((x for x in data_after if start_pt['low'] + up_pt * 0.0001 <= x['high']), None)
         debug_log(
-            f"Data - {startPt['timeObj']}, dectect if data['high'] - {upPt} * 0.0001 - {startPt['high'] + upPt * 0.0001}")
-        if firstMatch is not None:
+            f"Data - {start_pt['timeObj']}, dectect if data['high'] - {up_pt} * 0.0001 - {start_pt['high'] + up_pt * 0.0001}")
+        if first_match is not None:
             debug_log(
-                f"First Match - {firstMatch['timeObj']}, try seek lower than {firstMatch['high'] - downPt * 0.0001}")
-            list_after = [x for x in dataAfter if x['timeObj'] > firstMatch['timeObj']]
-            second_match = next((x for x in list_after if firstMatch['high'] - downPt * 0.0001 >= x['low']), None)
+                f"First Match - {first_match['timeObj']}, try seek lower than {first_match['high'] - down_pt * 0.0001}")
+            list_after = [x for x in data_after if x['timeObj'] > first_match['timeObj']]
+            second_match = next((x for x in list_after if first_match['high'] - down_pt * 0.0001 >= x['low']), None)
             if second_match is not None:
                 debug_log(f"Second Match - {second_match}")
                 return MATCH_RESULT.MATCH
