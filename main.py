@@ -24,9 +24,8 @@ rootLogger.addHandler(consoleHandler)
 
 class MATCH_RESULT(Enum):
     MATCH = auto()
-    FIRST_MATCH_ONLY = auto()
+    FIRST_UNMATCH = auto()
     SECOND_UNMATCH = auto()
-
 
 def market_data_of(code, interval, start, end):
     url_link = f"http://fishfish.sytes.net:13000/market_price_asc_view?and=(code.eq.{code},interval_min.eq.{interval},time.gte.{start},time.lte.{end})"
@@ -47,7 +46,7 @@ def enrich(data):
 
 
 def process_data(data) -> MATCH_RESULT:
-    upPt = 10
+    upPt = 30
     downPt = 10
     if data:
         startPt = data[0]
@@ -67,7 +66,7 @@ def process_data(data) -> MATCH_RESULT:
             else:
                 return MATCH_RESULT.SECOND_UNMATCH
         else:
-            return MATCH_RESULT.FIRST_MATCH_ONLY
+            return MATCH_RESULT.FIRST_UNMATCH
 
 
 if __name__ == '__main__':
@@ -77,4 +76,8 @@ if __name__ == '__main__':
                    groupby(sorted(rawJson, key=itemgetter('timeGroup')), key=itemgetter('timeGroup'))}
     firstList = groupedData.get(list(groupedData.keys())[0])
     result = [process_data([a for a in firstList if a['timeObj'] > x['timeObj']]) for x in firstList]
-    debug_log(result)
+    all_match_result = dict.fromkeys(MATCH_RESULT, 0)
+    for matchType in MATCH_RESULT:
+        all_match_result[matchType] = result.count(matchType)
+    debug_log(all_match_result)
+
