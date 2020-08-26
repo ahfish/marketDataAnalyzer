@@ -37,8 +37,11 @@ def debug_log(data):
 
 def enrich(data):
     date_time_str = data['time']
-    data['timeObj'] = pd.Timestamp(datetime.datetime.fromisoformat(date_time_str))
+    date_time = datetime.datetime.fromisoformat(date_time_str)
+    data['timeObj'] = pd.Timestamp(date_time)
     data['timeGroup'] = data['timeObj'].ceil('-1D')
+    data['weekGroup'] = date_time.strftime("%Y-%U")
+    data['monthGroup'] = date_time.strftime("%Y-%m")
 
 
 def process_data(data) -> MATCH_RESULT:
@@ -86,8 +89,28 @@ def simulate_day_trade(all_data) -> dict:
     return final_all_match_result;
 
 
+def simulate_week_trade(all_data) -> dict:
+    grouped_data = {k: [data for data in g] for k, g in
+                   groupby(sorted(all_data, key=itemgetter('weekGroup')), key=itemgetter('weekGroup'))}
+    final_all_match_result = dict.fromkeys(MATCH_RESULT, 0)
+    [merge_match_result(final_all_match_result, simulate_result) for simulate_result in [simulate_result_with_up_down(date_list) for date_group, date_list in grouped_data.items()]]
+    return final_all_match_result;
+
+
+def simulate_month_trade(all_data) -> dict:
+    grouped_data = {k: [data for data in g] for k, g in
+                   groupby(sorted(all_data, key=itemgetter('monthGroup')), key=itemgetter('monthGroup'))}
+    final_all_match_result = dict.fromkeys(MATCH_RESULT, 0)
+    [merge_match_result(final_all_match_result, simulate_result) for simulate_result in [simulate_result_with_up_down(date_list) for date_group, date_list in grouped_data.items()]]
+    return final_all_match_result;
+
+
 if __name__ == '__main__':
     rawJson = market_data_of('CADUSD', 1, '2019-08-21', '2020-08-07')
     [enrich(x) for x in rawJson]
-    all_match_result = simulate_day_trade(rawJson)
-    debug_log(all_match_result)
+    all_date_trade_match_result = simulate_day_trade(rawJson)
+    all_week_trade_match_result = simulate_week_trade(rawJson)
+    all_month_trade_match_result = simulate_month_trade(rawJson)
+    debug_log(f"day trade - {all_date_trade_match_result}")
+    debug_log(f"week trade - {all_date_trade_match_result}")
+    debug_log(f"month trade - {all_month_trade_match_result}")
