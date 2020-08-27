@@ -6,16 +6,20 @@ import urllib.request
 from enum import Enum, auto
 from itertools import groupby
 from operator import itemgetter
-
+from multiprocessing import Pool
 import pandas as pd
 
 logFormat = '%(asctime)s - %(levelname)s - %(threadName)s - [%(message)s]'
 logFormatter = logging.Formatter(logFormat)
-logging.basicConfig(filename='test.log', format=logFormat, level=logging.DEBUG)
+logging.basicConfig(filename='test.log', format=logFormat, level=logging.INFO)
 consoleHandler = logging.StreamHandler(sys.stdout)
 consoleHandler.setFormatter(logFormatter)
 rootLogger = logging.getLogger()
 rootLogger.addHandler(consoleHandler)
+
+
+def f(x):
+    return x*x
 
 
 class MATCH_RESULT(Enum):
@@ -23,15 +27,20 @@ class MATCH_RESULT(Enum):
     FIRST_UNMATCH = auto()
     SECOND_UNMATCH = auto()
 
+
 def market_data_of(code, interval, start, end):
     url_link = f"http://fishfish.sytes.net:13000/market_price_asc_view?and=(code.eq.{code},interval_min.eq.{interval},time.gte.{start},time.lte.{end})"
-    logging.info(url_link)
+    info(url_link)
     with urllib.request.urlopen(url_link) as url:
         data = json.loads(url.read())
         return data
 
 
-def debug_log(data):
+def debug(data):
+    logging.debug(data)
+
+
+def info(data):
     logging.info(data)
 
 
@@ -44,7 +53,7 @@ def enrich(data):
     data['monthGroup'] = date_time.strftime("%Y-%m")
 
 
-def process_data(data) -> MATCH_RESULT:
+def process_data(data):
     up_pt = 40
     down_pt = 10
     if data:
@@ -52,15 +61,15 @@ def process_data(data) -> MATCH_RESULT:
         first_date = start_pt['timeObj']
         data_after = [x for x in data if x['timeObj'] > first_date]
         first_match = next((x for x in data_after if start_pt['low'] + up_pt * 0.0001 <= x['high']), None)
-        debug_log(
+        debug(
             f"Data - {start_pt['timeObj']}, dectect if data['high'] - {up_pt} * 0.0001 - {start_pt['high'] + up_pt * 0.0001}")
         if first_match is not None:
-            debug_log(
+            debug(
                 f"First Match - {first_match['timeObj']}, try seek lower than {first_match['high'] - down_pt * 0.0001}")
             list_after = [x for x in data_after if x['timeObj'] > first_match['timeObj']]
             second_match = next((x for x in list_after if first_match['high'] - down_pt * 0.0001 >= x['low']), None)
             if second_match is not None:
-                debug_log(f"Second Match - {second_match}")
+                debug(f"Second Match - {second_match}")
                 return MATCH_RESULT.MATCH
             else:
                 return MATCH_RESULT.SECOND_UNMATCH
@@ -69,7 +78,10 @@ def process_data(data) -> MATCH_RESULT:
 
 
 def simulate_result_with_up_down(data_list) -> dict:
+    info("simulate_result_with_up_down..")
     result = [process_data([a for a in data_list if a['timeObj'] > x['timeObj']]) for x in data_list]
+    # worker_tasks = [pool.apply_async(f, [1]) for x in data_list]
+    #result = [worker_task.get() for worker_task in worker_tasks]
     all_match_result = dict.fromkeys(MATCH_RESULT, 0)
     for matchType in MATCH_RESULT:
         all_match_result[matchType] = result.count(matchType)
@@ -105,12 +117,17 @@ def simulate_month_trade(all_data) -> dict:
     return final_all_match_result;
 
 
+def show_result(type, result):
+    info(
+        f"{type} - {result}, result = {result[MATCH_RESULT.MATCH] / result[MATCH_RESULT.SECOND_UNMATCH]}")
+
+
 if __name__ == '__main__':
     rawJson = market_data_of('CADUSD', 1, '2019-08-21', '2020-08-07')
     [enrich(x) for x in rawJson]
     all_date_trade_match_result = simulate_day_trade(rawJson)
     all_week_trade_match_result = simulate_week_trade(rawJson)
     all_month_trade_match_result = simulate_month_trade(rawJson)
-    debug_log(f"day trade - {all_date_trade_match_result}")
-    debug_log(f"week trade - {all_date_trade_match_result}")
-    debug_log(f"month trade - {all_month_trade_match_result}")
+    show_result("date trade", all_date_trade_match_result)
+    show_result("week trade", all_week_trade_match_result)
+    show_result("month trade", all_month_trade_match_result)
