@@ -5,7 +5,7 @@ import psycopg2
 class postgresql(object):
     """postgresql db connection"""
 
-    insert_result_query = """ INSERT INTO simulation (name, key, code, start_date, end_date, duration, input1, input2, input3, unmatch, success, fail) VALUES (%s,%s,%s,%s,%s,%s%s,%s,%s,%s,%s,%s)"""
+    insert_result_query = """ INSERT INTO simulation (name, key, code, start_date, end_date, duration, input1, input2, input3, unmatch, success, fail) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
 
     def __init__(self):
         self.database_config = self.config()
@@ -36,7 +36,6 @@ class postgresql(object):
             cursor = self.connector.cursor()
             cursor.execute(self.insert_result_query, (
             name, key, code, start_date, end_date, duration, input1, input2, input3, unmatch, success, fail))
-            cursor.commit()
         except (Exception, psycopg2.Error) as error:
             print(f'error - {error}')
         finally:
@@ -45,8 +44,9 @@ class postgresql(object):
     def __enter__(self):
         self.connector = self.connect()
         return self
-
+K
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.connector is not None:
+            self.connector.commit()
             self.connector.close()
             print('Database connection closed.')

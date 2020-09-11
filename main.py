@@ -107,7 +107,7 @@ def up_down_strategy(up_pt, down_pt, data):
             return MATCH_RESULT.FIRST_UNMATCH
 
 
-def simulate_result_with_up_down(data_list, up, down, code, duration) -> dict:
+def simulate_result_with_up_down(data_list, up, down, type, code, duration) -> dict:
     info(f"{inspect.currentframe().f_code.co_name}...")
     result = [up_down_strategy(up, down, [a for a in data_list if a['timeObj'] > x['timeObj']]) for x in data_list]
     all_match_result = dict.fromkeys(MATCH_RESULT, 0)
@@ -144,7 +144,7 @@ def simulate_day_trade(all_data, func, first_argument, second_argument, code) ->
                     groupby(sorted(all_data, key=itemgetter('timeGroup')), key=itemgetter('timeGroup'))}
     final_all_match_result = dict.fromkeys(MATCH_RESULT, 0)
     [merge_match_result(final_all_match_result, simulate_result) for simulate_result in
-     [func(date_list, first_argument, second_argument, code, 'day') for date_group, date_list in grouped_data.items()]]
+     [func(date_list, first_argument, second_argument, date_group.strftime("%Y-%m-%d"), code, 'day') for date_group, date_list in grouped_data.items()]]
     return final_all_match_result
 
 
