@@ -1,8 +1,12 @@
 from configparser import ConfigParser
 import psycopg2
 
+
 class postgresql(object):
     """postgresql db connection"""
+
+    insert_result_query = """ INSERT INTO simulation (name, key, code, start_date, end_date, duration, input1, input2, input3, unmatch, success, fail) VALUES (%s,%s,%s,%s,%s,%s%s,%s,%s,%s,%s,%s)"""
+
     def __init__(self):
         self.database_config = self.config()
         self.connector = None
@@ -24,6 +28,19 @@ class postgresql(object):
         # connect to the PostgreSQL server
         print('Connecting to the PostgreSQL database...')
         return psycopg2.connect(**self.database_config)
+
+    def insert_result(self, name, key, code, start_date, end_date, duration, input1, input2, input3, unmatch, success,
+                      fail):
+        try:
+            print('insert to the PostgreSQL database...')
+            cursor = self.connector.cursor()
+            cursor.execute(self.insert_result_query, (
+            name, key, code, start_date, end_date, duration, input1, input2, input3, unmatch, success, fail))
+            cursor.commit()
+        except (Exception, psycopg2.Error) as error:
+            print(f'error - {error}')
+        finally:
+            cursor.close()
 
     def __enter__(self):
         self.connector = self.connect()

@@ -15,7 +15,7 @@ from configparser import ConfigParser
 
 logFormat = '%(asctime)s - %(levelname)s - %(threadName)s - [%(message)s]'
 logFormatter = logging.Formatter(logFormat)
-#logging.basicConfig(filename='test.log', format=logFormat, level=logging.DEBUG)
+# logging.basicConfig(filename='test.log', format=logFormat, level=logging.DEBUG)
 logging.basicConfig(filename='test.log', format=logFormat, level=logging.INFO)
 consoleHandler = logging.StreamHandler(sys.stdout)
 consoleHandler.setFormatter(logFormatter)
@@ -76,7 +76,7 @@ def down_up_strategy(down_pt, up_pt, data):
             return MATCH_RESULT.FIRST_UNMATCH
 
 
-def simulate_result_with_down_up(data_list, down, up) -> dict:
+def simulate_result_with_down_up(data_list, down, up, code, duration) -> dict:
     info("simulate_result_with_down_up..")
     result = [down_up_strategy(down, up, [a for a in data_list if a['timeObj'] > x['timeObj']]) for x in data_list]
     all_match_result = dict.fromkeys(MATCH_RESULT, 0)
@@ -107,12 +107,30 @@ def up_down_strategy(up_pt, down_pt, data):
             return MATCH_RESULT.FIRST_UNMATCH
 
 
-def simulate_result_with_up_down(data_list, up, down) -> dict:
+def simulate_result_with_up_down(data_list, up, down, code, duration) -> dict:
     info(f"{inspect.currentframe().f_code.co_name}...")
     result = [up_down_strategy(up, down, [a for a in data_list if a['timeObj'] > x['timeObj']]) for x in data_list]
     all_match_result = dict.fromkeys(MATCH_RESULT, 0)
     for matchType in MATCH_RESULT:
         all_match_result[matchType] = result.count(matchType)
+
+    first_date = data_list[0]['timeObj']
+    last_date = data_list[-1]['timeObj']
+    with postgresql() as conn:
+        conn.insert_result(
+            inspect.currentframe().f_code.co_name,
+            type,
+            code,
+            first_date,
+            last_date,
+            duration,
+            up,
+            down,
+            None,
+            all_match_result[MATCH_RESULT.FIRST_UNMATCH],
+            all_match_result[MATCH_RESULT.MATCH],
+            all_match_result[MATCH_RESULT.SECOND_UNMATCH]
+        )
     return all_match_result
 
 
@@ -121,28 +139,30 @@ def merge_match_result(final_match_result, match_result):
         final_match_result[matchType] += match_result[matchType]
 
 
-def simulate_day_trade(all_data, func, first_argument, second_argument) -> dict:
+def simulate_day_trade(all_data, func, first_argument, second_argument, code) -> dict:
     grouped_data = {k: [data for data in g] for k, g in
-                   groupby(sorted(all_data, key=itemgetter('timeGroup')), key=itemgetter('timeGroup'))}
+                    groupby(sorted(all_data, key=itemgetter('timeGroup')), key=itemgetter('timeGroup'))}
     final_all_match_result = dict.fromkeys(MATCH_RESULT, 0)
     [merge_match_result(final_all_match_result, simulate_result) for simulate_result in
-     [func(date_list, first_argument, second_argument) for date_group, date_list in grouped_data.items()]]
+     [func(date_list, first_argument, second_argument, code, 'day') for date_group, date_list in grouped_data.items()]]
     return final_all_match_result
 
 
-def simulate_week_trade(all_data, func, first_argument, second_argument) -> dict:
+def simulate_week_trade(all_data, func, first_argument, second_argument, code) -> dict:
     grouped_data = {k: [data for data in g] for k, g in
-                   groupby(sorted(all_data, key=itemgetter('weekGroup')), key=itemgetter('weekGroup'))}
+                    groupby(sorted(all_data, key=itemgetter('weekGroup')), key=itemgetter('weekGroup'))}
     final_all_match_result = dict.fromkeys(MATCH_RESULT, 0)
-    [merge_match_result(final_all_match_result, simulate_result) for simulate_result in [func(date_list, first_argument, second_argument) for date_group, date_list in grouped_data.items()]]
+    [merge_match_result(final_all_match_result, simulate_result) for simulate_result in
+     [func(date_list, first_argument, second_argument, 'week') for date_group, date_list in grouped_data.items()]]
     return final_all_match_result
 
 
-def simulate_month_trade(all_data, func, first_argument, second_argument) -> dict:
+def simulate_month_trade(all_data, func, first_argument, second_argument, code) -> dict:
     grouped_data = {k: [data for data in g] for k, g in
-                   groupby(sorted(all_data, key=itemgetter('monthGroup')), key=itemgetter('monthGroup'))}
+                    groupby(sorted(all_data, key=itemgetter('monthGroup')), key=itemgetter('monthGroup'))}
     final_all_match_result = dict.fromkeys(MATCH_RESULT, 0)
-    [merge_match_result(final_all_match_result, simulate_result) for simulate_result in [func(date_list, first_argument, second_argument) for date_group, date_list in grouped_data.items()]]
+    [merge_match_result(final_all_match_result, simulate_result) for simulate_result in
+     [func(date_list, first_argument, second_argument, 'month') for date_group, date_list in grouped_data.items()]]
     return final_all_match_result
 
 
@@ -152,17 +172,12 @@ def show_result(type, result):
 
 
 if __name__ == '__main__':
-    with postgresql() as conn:
-        cur = conn.connector.cursor()
-        cur.execute('SELECT version()')
-        # display the PostgreSQL database server version
-        db_version = cur.fetchone()
-        info(db_version)
-    #rawJson = market_data_of('CADUSD', 1, '2019-08-21', '2020-08-07')
-    #[enrich(x) for x in rawJson]
-    #all_date_trade_match_result = simulate_day_trade(rawJson, simulate_result_with_up_down, 40, 10)
+    code = 'CADUSD'
+    rawJson = market_data_of(code, 1, '2019-08-21', '2020-08-07')
+    [enrich(x) for x in rawJson]
+    all_date_trade_match_result = simulate_day_trade(rawJson, simulate_result_with_up_down, 40, 10, code)
     # all_week_trade_match_result = simulate_week_trade(rawJson)
     # all_month_trade_match_result = simulate_month_trade(rawJson)
-    #show_result("date trade", all_date_trade_match_result)
+    show_result("date trade", all_date_trade_match_result)
     # show_result("week trade", all_week_trade_match_result)
     # show_result("month trade", all_month_trade_match_result)
