@@ -108,17 +108,12 @@ def up_down_strategy(up_pt, down_pt, data):
 
 
 def simulate_result_with_up_down(data_list, up, down, type, code, duration) -> dict:
-    info(f"{inspect.currentframe().f_code.co_name}...")
-    result = [up_down_strategy(up, down, [a for a in data_list if a['timeObj'] > x['timeObj']]) for x in data_list]
-    all_match_result = dict.fromkeys(MATCH_RESULT, 0)
-    for matchType in MATCH_RESULT:
-        all_match_result[matchType] = result.count(matchType)
-
-    first_date = data_list[0]['timeObj']
-    last_date = data_list[-1]['timeObj']
     with postgresql() as conn:
-        conn.insert_result(
-            inspect.currentframe().f_code.co_name,
+        info(f"{inspect.currentframe().f_code.co_name}...")
+        first_date = data_list[0]['timeObj']
+        last_date = data_list[-1]['timeObj']
+        all_match_result = dict.fromkeys(MATCH_RESULT, 0)
+        cached_result = conn.result_of(inspect.currentframe().f_code.co_name,
             type,
             code,
             first_date,
@@ -126,11 +121,29 @@ def simulate_result_with_up_down(data_list, up, down, type, code, duration) -> d
             duration,
             up,
             down,
-            None,
-            all_match_result[MATCH_RESULT.FIRST_UNMATCH],
-            all_match_result[MATCH_RESULT.MATCH],
-            all_match_result[MATCH_RESULT.SECOND_UNMATCH]
-        )
+            -1)
+        if len(cached_result) > 0:
+            all_match_result[MATCH_RESULT.FIRST_UNMATCH] = cached_result[0][0]
+            all_match_result[MATCH_RESULT.MATCH] = cached_result[0][1]
+            all_match_result[MATCH_RESULT.SECOND_UNMATCH] = cached_result[0][2]
+        else:
+            result = [up_down_strategy(up, down, [a for a in data_list if a['timeObj'] > x['timeObj']]) for x in data_list]
+            for matchType in MATCH_RESULT:
+                all_match_result[matchType] = result.count(matchType)
+            conn.insert_result(
+                inspect.currentframe().f_code.co_name,
+                type,
+                code,
+                first_date,
+                last_date,
+                duration,
+                up,
+                down,
+                -1,
+                all_match_result[MATCH_RESULT.FIRST_UNMATCH],
+                all_match_result[MATCH_RESULT.MATCH],
+                all_match_result[MATCH_RESULT.SECOND_UNMATCH]
+            )
     return all_match_result
 
 
