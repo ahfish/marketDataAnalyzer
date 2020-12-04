@@ -190,11 +190,14 @@ def merge_match_result(final_match_result, match_result):
 
 
 def simulate_day_trade(all_data, func, first_argument, second_argument, code, pt) -> dict:
-    grouped_data = {k: [data for data in g] for k, g in
-                    groupby(sorted(all_data, key=itemgetter('timeGroup')), key=itemgetter('timeGroup'))}
-    final_all_match_result = dict.fromkeys(MATCH_RESULT, 0)
-    [merge_match_result(final_all_match_result, simulate_result) for simulate_result in
-     [func(date_list, first_argument, second_argument, date_group.strftime("%Y-%m-%d"), code, 'day', pt) for date_group, date_list in grouped_data.items()]]
+    with Pool(processes=4) as pool:
+        grouped_data = {k: [data for data in g] for k, g in
+                        groupby(sorted(all_data, key=itemgetter('timeGroup')), key=itemgetter('timeGroup'))}
+        final_all_match_result = dict.fromkeys(MATCH_RESULT, 0)
+#        [merge_match_result(final_all_match_result, simulate_result) for simulate_result in
+#         [func(date_list, first_argument, second_argument, date_group.strftime("%Y-%m-%d"), code, 'day', pt) for date_group, date_list in grouped_data.items()]]
+        [merge_match_result(final_all_match_result, simulate_result) for simulate_result in
+         [pool.map(func, (date_list, first_argument, second_argument, date_group.strftime("%Y-%m-%d"), code, 'day', pt,)) for date_group, date_list in grouped_data.items()]]
     return final_all_match_result
 
 
