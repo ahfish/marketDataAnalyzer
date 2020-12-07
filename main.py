@@ -114,12 +114,6 @@ def simulate_result_with_down_up(data_list, down, up, type, code, duration, pt) 
                 all_match_result[MATCH_RESULT.SECOND_UNMATCH]
             )
     return all_match_result
-    #info("simulate_result_with_down_up..")
-    #result = [down_up_strategy(down, up, pt, [a for a in data_list if a['timeObj'] > x['timeObj']]) for x in data_list]
-    #all_match_result = dict.fromkeys(MATCH_RESULT, 0)
-    #for matchType in MATCH_RESULT:
-    #    all_match_result[matchType] = result.count(matchType)
-    #return all_match_result
 
 
 def up_down_strategy(up_pt, down_pt, pt, data):
